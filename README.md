@@ -1,6 +1,6 @@
 # Amcrest AD110
 
-![David](https://img.shields.io/david/bmdevx/amcrest-ad110?style=flat-square)  ![npm](https://img.shields.io/npm/dt/amcrest-ad110?style=flat-square) ![npm](https://img.shields.io/npm/v/amcrest-ad110?style=flat-square) ![GitHub](https://img.shields.io/github/license/bmdevx/amcrest-ad110?style=flat-square)
+![David](https://img.shields.io/david/bmdevx/amcrest-ad110?style=flat-square)  [![npm](https://img.shields.io/npm/dt/amcrest-ad110?style=flat-square)](https://www.npmjs.com/package/amcrest-ad110) [![npm](https://img.shields.io/npm/v/amcrest-ad110?style=flat-square)](https://www.npmjs.com/package/amcrest-ad110) ![GitHub](https://img.shields.io/github/license/bmdevx/amcrest-ad110?style=flat-square)
 
 ## Features
 

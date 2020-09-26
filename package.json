@@ -1,0 +1,30 @@
+{
+  "name": "amcrest-ad110",
+  "version": "0.1.0",
+  "description": "Amcrest AD110 Video Doorbell Monitor",
+  "main": "ad110-monitor.js",
+  "author": "bmdevx",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "events": "^3.2.0",
+    "got": "^11.7.0",
+    "http-auth-client": "^0.4.1"
+  },
+  "keywords": [
+    "amcrest",
+    "AD110",
+    "doorbell"
+  ],
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bmdevx/amcrest-ad110"
+  },
+  "bugs": {
+    "url": "https://github.com/bmdevx/amcrest-ad110/issues"
+  },
+  "homepage": "https://github.com/bmdevx/amcrest-ad110#readme"
+}

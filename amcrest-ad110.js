@@ -7,7 +7,7 @@ const TIME_PATH = '/cgi-bin/globalglobal.cgi?action=getCurrentTime';
 
 const RETRY_DELAY = 60000;
 
-class AD110Monitor {
+class AmcrestAD110 {
     constructor(config) {
         if (config.ipAddr == undefined) throw 'No ipAddr defined';
         if (config.password == undefined) throw 'No password defined';
@@ -198,4 +198,4 @@ class AD110Monitor {
 }
 
 
-module.exports = AD110Monitor;
+module.exports = AmcrestAD110;

@@ -14,7 +14,8 @@
 constructor({
     ipAddr: 'Device IP Address',
     password: 'device password',
-    retryDelay: 60000    //optional
+    retryDelay: 60000,    //(optional) how often to try and reconnect after loosing connection
+    rawCodes: false       //(optional) use rawCode data
 })
 
 isAlive();               //returns promise(bool)

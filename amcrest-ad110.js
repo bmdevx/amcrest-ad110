@@ -3,7 +3,7 @@ const got = require('got/dist/source');
 const Auth = require('http-auth-client')
 
 const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
-const TIME_PATH = '/cgi-bin/globalglobal.cgi?action=getCurrentTime';
+const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
 const RETRY_DELAY = 60000;
 
@@ -15,6 +15,7 @@ class AmcrestAD110 {
         this.ipAddr = config.ipAddr;
         this.password = config.password;
 
+        this.rawCodes = config.rawCodes || false;
         this.retryDelay = config.retryDelay || RETRY_DELAY;
 
         this.emitter = new events.EventEmitter();
@@ -23,25 +24,35 @@ class AmcrestAD110 {
         this.listener = null;
         this.auth = null;
 
-        this.process = (code) => {
-            switch (code) {
-                case 'AlarmLocal': {
-                    code.code = 'Motion';
-                }
-                case '_DoTalkAction_': {
-                    code = code.data;
-                    code.action = code.Action;
-                    delete code.Action;
+        this.process = (event) => {
+            if (this.rawCodes === false) {
+                switch (event.Code) {
+                    case 'AlarmLocal': {
+                        event.code = 'Motion';
+                    }
+                    case '_DoTalkAction_': {
+                        event = event.data;
+                        event.code = event.Action;
+                        delete event.Action;
 
-                    this.emitter.emit(code.action, code);
+                        this.emitter.emit(event.action, event);
+                    }
+                    case 'CallNoAnswered': {
+                        event.code = 'CallNotAnswered';
+                    }
                 }
-                case 'CallNoAnswered': {
-                    code.action = 'CallNotAnswered';
+
+                if (event.code === undefined) {
+                    event.code = event.Code;
+                }
+
+                if (event.Code !== undefined) {
+                    delete event.Code;
                 }
             }
 
-            this.emitter.emit(code.action, code);
-            this.emitter.emit('*', code);
+            this.emitter.emit(event.action, event);
+            this.emitter.emit('*', event);
         };
 
         this.attach = () => {
@@ -74,13 +85,13 @@ class AmcrestAD110 {
                                             if (l.startsWith('}')) {
                                                 try {
                                                     const idx = al.indexOf(';data=');
-                                                    var code = al.substring(0, idx);
+                                                    var event = al.substring(0, idx);
                                                     var data = al.substring(idx + 6);
 
-                                                    var code = JSON.parse(`{"${code.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`)
-                                                    code.data = JSON.parse(data);
+                                                    var event = JSON.parse(`{"${event.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`)
+                                                    event.data = JSON.parse(data);
 
-                                                    this.process(code);
+                                                    this.process(event);
                                                 } catch (err) {
                                                     this.emitter.emit('error', err);
                                                 }

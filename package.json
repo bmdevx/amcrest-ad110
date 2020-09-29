@@ -16,9 +16,6 @@
     "doorbell"
   ],
   "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/bmdevx/amcrest-ad110"

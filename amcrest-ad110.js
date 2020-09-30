@@ -5,7 +5,8 @@ const Auth = require('http-auth-client')
 const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
 const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
-const RETRY_DELAY = 60000;
+const DEFAULT_RETRY_DELAY = 60000;
+const DEFAULT_USE_RAW_CODES = false;
 
 class AmcrestAD110 {
     constructor(config) {
@@ -15,8 +16,8 @@ class AmcrestAD110 {
         this.ipAddr = config.ipAddr;
         this.password = config.password;
 
-        this.rawCodes = config.rawCodes || false;
-        this.retryDelay = config.retryDelay || RETRY_DELAY;
+        this.rawCodes = config.rawCodes || DEFAULT_USE_RAW_CODES;
+        this.retryDelay = config.retryDelay || DEFAULT_RETRY_DELAY;
 
         this.emitter = new events.EventEmitter();
         this.running = false;
@@ -177,15 +178,15 @@ class AmcrestAD110 {
     }
 
 
-    onMotion(listener) { //alarmlocal
+    onMotion(listener) { //AlarmLocal
         this.emitter.addListener('Motion', listener);
     }
 
-    onVideoMotion(listener) { //videomotion
+    onVideoMotion(listener) { //VideoMotion
         this.emitter.addListener('VideoMotion', listener);
     }
 
-    onVideoBlindStart(listener) { //videoblind
+    onVideoBlindStart(listener) { //Videoblind
         this.emitter.addListener('VideoBlind', listener);
     }
 

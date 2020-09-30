@@ -30,16 +30,17 @@ class AmcrestAD110 {
                 switch (event.Code) {
                     case 'AlarmLocal': {
                         event.code = 'Motion';
+                        break;
                     }
                     case '_DoTalkAction_': {
                         event = event.data;
                         event.code = event.Action;
                         delete event.Action;
-
-                        this.emitter.emit(event.code, event);
+                        break;
                     }
                     case 'CallNoAnswered': {
                         event.code = 'CallNotAnswered';
+                        break;
                     }
                 }
 

@@ -36,7 +36,7 @@ class AmcrestAD110 {
                         event.code = event.Action;
                         delete event.Action;
 
-                        this.emitter.emit(event.action, event);
+                        this.emitter.emit(event.code, event);
                     }
                     case 'CallNoAnswered': {
                         event.code = 'CallNotAnswered';
@@ -52,7 +52,7 @@ class AmcrestAD110 {
                 }
             }
 
-            this.emitter.emit(event.action, event);
+            this.emitter.emit(event.code, event);
             this.emitter.emit('*', event);
         };
 

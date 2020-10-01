@@ -6,7 +6,7 @@ const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
 const SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi';
 const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
-const DEFAULT_RETRY_DELAY = 60000;
+const DEFAULT_RETRY_DELAY = 1000;
 const DEFAULT_USE_RAW_CODES = false;
 
 class AmcrestAD110 {
@@ -24,7 +24,6 @@ class AmcrestAD110 {
         this.running = false;
 
         this.listener = null;
-        this.auth = null;
 
         this.process = (event) => {
             if (this.rawCodes === false) {
@@ -59,120 +58,124 @@ class AmcrestAD110 {
         };
 
         this.attach = () => {
-            this.isAlive()
-                .then(alive => {
-                    if (!alive) {
-                        this.emitter.emit('error', 'AD110 Not Found');
-                    } else {
-                        this.listener = got(`http://${this.ipAddr}${ATTACH_PATH}`, {
-                            headers: { 'Authorization': this.auth }
-                        });
+            const url = `http://${this.ipAddr}${ATTACH_PATH}`;
 
-                        this.listener
-                            .on('response', res => {
-                                res.on('data', data => {
-                                    var lines = Buffer.from(data).toString().split('\n');
-                                    var midCode = false, al;
+            this.getDigestOptions(url)
+                .then(options => {
+                    this.listener = got(url, options);
 
-                                    lines.forEach(l => {
-                                        if (l.startsWith('Code')) {
-                                            if (l.includes('data={')) {
-                                                al = l;
-                                                midCode = true;
-                                            } else {
-                                                this.process(JSON.parse(`{"${l.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`));
-                                            }
-                                        } else if (midCode) {
-                                            al += l;
+                    this.listener
+                        .on('response', res => {
+                            res.on('data', data => {
+                                var lines = Buffer.from(data).toString().split('\n');
+                                var midCode = false, al;
 
-                                            if (l.startsWith('}')) {
-                                                try {
-                                                    const idx = al.indexOf(';data=');
-                                                    var event = al.substring(0, idx);
-                                                    var data = al.substring(idx + 6);
-
-                                                    var event = JSON.parse(`{"${event.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`)
-                                                    event.data = JSON.parse(data);
-
-                                                    this.process(event);
-                                                } catch (err) {
-                                                    this.emitter.emit('error', err);
-                                                }
-                                                this.midCode = false;
-                                            }
+                                lines.forEach(l => {
+                                    if (l.startsWith('Code')) {
+                                        if (l.includes('data={')) {
+                                            al = l;
+                                            midCode = true;
+                                        } else {
+                                            this.process(JSON.parse(`{"${l.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`));
                                         }
-                                    });
+                                    } else if (midCode) {
+                                        al += l;
+
+                                        if (l.startsWith('}')) {
+                                            try {
+                                                const idx = al.indexOf(';data=');
+                                                var event = al.substring(0, idx);
+                                                var data = al.substring(idx + 6);
+
+                                                var event = JSON.parse(`{"${event.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`)
+                                                event.data = JSON.parse(data);
+
+                                                this.process(event);
+                                            } catch (err) {
+                                                this.emitter.emit('error', err);
+                                            }
+                                            this.midCode = false;
+                                        }
+                                    }
                                 });
-                            })
-                            .catch(err => {
-                                if (!err.isCanceled) {
-                                    if (err.response && err.response.statusCode) {
-                                        if (err.response.statusCode == 401) {
-                                            this.emitter.emit('error', 'Unauthorized Access');
-                                        }
-                                    }
-                                    else {
-                                        this.emitter.emit('error', JSON.stringify(err));
-                                    }
-                                } else {
-                                    this.listener = null;
-                                }
-
-                                this.auth = null;
-                            })
-                            .finally(_ => {
-                                if (this.running) {
-                                    setTimeout(_ => {
-                                        if (this.running) {
-                                            this.attach();
-                                        }
-                                    }, this.retryDelay);
-                                }
                             });
-                    }
-                });
+                        })
+                        .catch(err => {
+                            if (!err.isCanceled) {
+                                if (err.response && err.response.statusCode) {
+                                    if (err.response.statusCode == 401) {
+                                        this.emitter.emit('error', 'Unauthorized Access');
+                                    }
+                                }
+                                else {
+                                    this.emitter.emit('error', JSON.stringify(err));
+                                }
+                            } else {
+                                this.listener = null;
+                            }
+                        })
+                        .finally(_ => {
+                            if (this.running) {
+                                setTimeout(_ => {
+                                    if (this.running) {
+                                        this.attach();
+                                    }
+                                }, this.retryDelay);
+                            }
+                        });
+                })
+                .catch(console.error);
         }
+
+
+        this.getDigestOptions = (path, options = {}) =>
+            new Promise((res, rej) => {
+                got(path, options)
+                    .catch(errRes => {
+                        if (errRes.response.statusCode == 401) {
+                            var challenges = Auth.parseHeaders(errRes.response.headers['www-authenticate']);
+                            var auth = Auth.create(challenges);
+                            auth.credentials('admin', this.password);
+
+                            if (options.headers) {
+                                options.headers['Authorization'] = auth.authorization("GET", path)
+                            } else {
+                                options.headers = {
+                                    'Authorization': auth.authorization("GET", path)
+                                }
+                            }
+
+                            res(options);
+                        } else {
+                            rej('Status Code Not 401');
+                        }
+                    });
+            });
     }
 
     isAlive() {
         return new Promise((res, rej) => {
-            got(`http://${this.ipAddr}${TIME_PATH}`)
-                .catch(errRes => {
-                    if (errRes.response.statusCode == 401) {
-                        var challenges = Auth.parseHeaders(errRes.response.headers['www-authenticate']);
-                        var auth = Auth.create(challenges);
-
-                        auth.credentials('admin', this.password);
-
-                        this.auth = auth.authorization("GET", ATTACH_PATH)
-
-                        res(true);
-                    } else {
-                        res(false);
-                    }
+            this.getDigestOptions(`http://${this.ipAddr}${TIME_PATH}`)
+                .then(options => {
+                    res(true);
+                })
+                .catch(err => {
+                    res(false);
                 });
         });
     }
 
     takeSnapshot() {
         return new Promise((res, rej) => {
-            const getSnapshot = () => {
-                got(`http://${this.ipAddr}${SNAPSHOT_PATH}`, {
-                    headers: { 'Authorization': this.auth }
-                }).buffer()
-                    .then(res)
-                    .catch(rej);
-            };
+            const url = `http://${this.ipAddr}${SNAPSHOT_PATH}`;
 
-            if (this.auth !== null) {
-                getSnapshot();
-            } else {
-                this.isAlive()
-                    .then(alive => {
-                        getSnapshot();
-                    })
-                    .catch(rej);
-            }
+            this.getDigestOptions(url)
+                .then(options => {
+                    got(url, options).buffer()
+                        .then(res)
+                        .catch(rej);
+                })
+                .catch(rej);
         });
     }
 
@@ -229,8 +232,6 @@ class AmcrestAD110 {
     onCallNotAnswered(listener) { //CallNoAnswered
         this.emitter.addListener('CallNotAnswered', listener);
     }
-
-
 }
 
 

@@ -1,7 +1,7 @@
 {
   "name": "amcrest-ad110",
-  "version": "1.0.2",
-  "description": "Amcrest AD110 Video Doorbell Monitor",
+  "version": "1.1.0",
+  "description": "Amcrest AD110 Video Doorbell Tools",
   "main": "amcrest-ad110.js",
   "author": "bmdevx",
   "license": "GPL-3.0",

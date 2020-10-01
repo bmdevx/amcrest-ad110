@@ -3,6 +3,7 @@ const got = require('got/dist/source');
 const Auth = require('http-auth-client')
 
 const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
+const SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi';
 const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
 const DEFAULT_RETRY_DELAY = 60000;
@@ -150,6 +151,28 @@ class AmcrestAD110 {
                         res(false);
                     }
                 });
+        });
+    }
+
+    takeSnapshot() {
+        return new Promise((res, rej) => {
+            const getSnapshot = () => {
+                got(`http://${this.ipAddr}${SNAPSHOT_PATH}`, {
+                    headers: { 'Authorization': this.auth }
+                }).buffer()
+                    .then(res)
+                    .catch(rej);
+            };
+
+            if (this.auth !== null) {
+                getSnapshot();
+            } else {
+                this.isAlive()
+                    .then(alive => {
+                        getSnapshot();
+                    })
+                    .catch(rej);
+            }
         });
     }
 

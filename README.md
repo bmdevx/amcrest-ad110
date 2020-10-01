@@ -6,6 +6,7 @@
 
 * Listens to Amcrest AD110 events
 * Checks if device exists
+* Takes Snapshots
 
 ### Methods
 
@@ -18,10 +19,12 @@ constructor({
     rawCodes: false       //(optional) Use rawCode data (properties are not uniform)
 })
 
-isAlive();               //returns promise(bool)
+isAlive();                //returns promise(bool)
 
-start();
-stop();
+takeSnapshot();           //returns promise(buffer)
+
+start();                  //start listening to events
+stop();                   //stop listening to events
 
 //listen to all events (event object contains an 'action' and sometimes 'data' object or an 'index' value)
 listen(listener);
@@ -42,6 +45,5 @@ onCallNotAnswered(listener);
 
 * Get/Set Custom Configuration
 * Possibily:
-  * Take Snapshots
   * Record Video
   * Talk and Listen to Audio

@@ -8,6 +8,7 @@ const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
 const DEFAULT_RETRY_DELAY = 1000;
 const DEFAULT_USE_RAW_CODES = false;
+const DEFAULT_RESET_TIME = 10 * 60;
 
 class AmcrestAD110 {
     constructor(config) {
@@ -19,9 +20,11 @@ class AmcrestAD110 {
 
         this.rawCodes = config.rawCodes || DEFAULT_USE_RAW_CODES;
         this.retryDelay = config.retryDelay || DEFAULT_RETRY_DELAY;
+        this.resetTime = (config.resetTime || DEFAULT_RESET_TIME) * 1000;
 
         this.emitter = new events.EventEmitter();
         this.running = false;
+        this.resetting = false;
 
         this.listener = null;
 
@@ -116,13 +119,28 @@ class AmcrestAD110 {
                         })
                         .finally(_ => {
                             if (this.running) {
-                                setTimeout(_ => {
-                                    if (this.running) {
-                                        this.attach();
-                                    }
-                                }, this.retryDelay);
+                                if (this.resetting) {
+                                    this.resetting = false;
+                                    this.attach();
+                                } else {
+                                    setTimeout(_ => {
+                                        if (this.running) {
+                                            this.attach();
+                                        }
+                                    }, this.retryDelay);
+                                }
+                            } else {
+                                this.resetting = false;
                             }
                         });
+
+                    if (this.resetTime > 0) {
+                        if (this.onreset !== undefined) clearTimeout(this.onreset);
+                        this.onreset = setTimeout(() => {
+                            this.resetting = true;
+                            this.listener.cancel();
+                        }, this.resetTime);
+                    }
                 })
                 .catch(console.error);
         }

@@ -16,7 +16,8 @@ constructor({
     ipAddr: 'Device IP Address',
     password: 'device password',
     retryDelay: 1000,     //(optional) How often to try and reconnect after loosing connection in millis
-    rawCodes: false       //(optional) Use rawCode data (properties are not uniform)
+    rawCodes: false,      //(optional) Use rawCode data (properties are not uniform)
+    resetTime: 900        //(optional) Time in seconds which to reset the connection. Setting to 0 does not reset.
 })
 
 isAlive();                //returns promise(bool)
@@ -30,7 +31,7 @@ stop();                   //stop listening to events
 listen(listener);
 unlisten();             //remove all listeners
 
-//Specific events:
+//Specific events (Processed Events Only):
 onMotion(listener);
 onVideoMotion(listener);
 onVideoBlindStart(listener);

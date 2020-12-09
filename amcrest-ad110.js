@@ -123,7 +123,8 @@ class AmcrestAD110 {
                                     this.resetting = false;
                                     this.attach();
                                 } else {
-                                    setTimeout(_ => {
+                                    if (this.onretry) clearTimeout(this.onretry);
+                                    this.onretry = setTimeout(_ => {
                                         if (this.running) {
                                             this.attach();
                                         }
@@ -135,7 +136,7 @@ class AmcrestAD110 {
                         });
 
                     if (this.resetTime > 0) {
-                        if (this.onreset !== undefined) clearTimeout(this.onreset);
+                        if (this.onreset) clearTimeout(this.onreset);
                         this.onreset = setTimeout(() => {
                             this.resetting = true;
                             this.listener.cancel();
@@ -208,6 +209,8 @@ class AmcrestAD110 {
     stop() {
         this.running = false;
 
+        if (this.onretry) clearTimeout(this.onretry);
+        if (this.onreset) clearTimeout(this.onreset);
         if (this.listener) {
             this.listener.cancel();
         }

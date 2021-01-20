@@ -28,6 +28,8 @@ class AmcrestAD110 {
 
         this.listener = null;
 
+        this.parse = (l) => JSON.parse(`{"${l.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`);
+
         this.process = (event) => {
             if (this.rawCodes === false) {
                 switch (event.Code) {
@@ -70,7 +72,11 @@ class AmcrestAD110 {
                     this.listener
                         .on('response', res => {
                             res.on('data', data => {
-                                var lines = Buffer.from(data).toString().split('\n');
+                                data = Buffer.from(data).toString();
+
+                                this.emitter.emit('raw', data);
+
+                                var lines = data.split('\n');
                                 var midCode = false, al;
 
                                 lines.forEach(l => {
@@ -79,7 +85,7 @@ class AmcrestAD110 {
                                             al = l;
                                             midCode = true;
                                         } else {
-                                            this.process(JSON.parse(`{"${l.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`));
+                                            this.process(this.parse(l));
                                         }
                                     } else if (midCode) {
                                         al += l;
@@ -88,10 +94,10 @@ class AmcrestAD110 {
                                             try {
                                                 const idx = al.indexOf(';data=');
                                                 var event = al.substring(0, idx);
-                                                var data = al.substring(idx + 6);
+                                                var edata = al.substring(idx + 6);
 
-                                                var event = JSON.parse(`{"${event.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`)
-                                                event.data = JSON.parse(data);
+                                                event = this.parse(event);
+                                                event.data = JSON.parse(edata);
 
                                                 this.process(event);
                                             } catch (err) {
@@ -143,7 +149,7 @@ class AmcrestAD110 {
                         }, this.resetTime);
                     }
                 })
-                .catch(console.error);
+                .catch(err => this.emitter.emit('error', err));
         }
 
 
@@ -252,6 +258,14 @@ class AmcrestAD110 {
 
     onCallNotAnswered(listener) { //CallNoAnswered
         this.emitter.addListener('CallNotAnswered', listener);
+    }
+
+    onRawData(listener) {
+        this.emitter.addListener('raw', listener);
+    }
+
+    onError(listener) {
+        this.emitter.addListener('error', listener);
     }
 }
 

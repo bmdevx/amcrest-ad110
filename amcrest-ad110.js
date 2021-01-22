@@ -10,6 +10,8 @@ const DEFAULT_RETRY_DELAY = 1000;
 const DEFAULT_USE_RAW_CODES = false;
 const DEFAULT_RESET_TIME = 10 * 60;
 
+const DEBUG = false;
+
 class AmcrestAD110 {
     constructor(config) {
         if (config.ipAddr == undefined) throw 'No ipAddr defined';
@@ -22,11 +24,26 @@ class AmcrestAD110 {
         this.retryDelay = config.retryDelay || DEFAULT_RETRY_DELAY;
         this.resetTime = (config.resetTime || DEFAULT_RESET_TIME) * 1000;
 
+        this.debug = (config.debug || DEBUG);
+
         this.emitter = new events.EventEmitter();
         this.running = false;
         this.resetting = false;
 
         this.listener = null;
+
+        this.emit = (code, data, format = false, debug = false) => {
+            const formatData = (code, data) => {
+                var obj = {};
+                obj[code] = data;
+                return obj;
+            }
+
+            this.emitter.emit(code, data);
+            if (!debug || (this.debug && debug)) this.emitter.emit('*', format ? formatData(code, data) : data);
+            if (code === 'error') console.error(data);
+            if (code === 'debug' && this.debug) console.debug(data);
+        };
 
         this.parse = (l) => JSON.parse(`{"${l.replace(/=/g, '":"').replace(/;/g, '","').replace(/\r/g, '')}"}`);
 
@@ -58,8 +75,9 @@ class AmcrestAD110 {
                 }
             }
 
-            this.emitter.emit(event.code, event);
-            this.emitter.emit('*', event);
+            this.emit(event.code, event);
+            //this.emitter.emit(event.code, event);
+            //this.emitter.emit('*', event);
         };
 
         this.attach = () => {
@@ -74,7 +92,7 @@ class AmcrestAD110 {
                             res.on('data', data => {
                                 data = Buffer.from(data).toString();
 
-                                this.emitter.emit('raw', data);
+                                this.emit('raw', data, true, true);
 
                                 var lines = data.split('\n');
                                 var midCode = false, al;
@@ -101,7 +119,7 @@ class AmcrestAD110 {
 
                                                 this.process(event);
                                             } catch (err) {
-                                                this.emitter.emit('error', err);
+                                                this.emit('error', err.message, true);
                                             }
                                             this.midCode = false;
                                         }
@@ -113,11 +131,11 @@ class AmcrestAD110 {
                             if (!err.isCanceled) {
                                 if (err.response && err.response.statusCode) {
                                     if (err.response.statusCode == 401) {
-                                        this.emitter.emit('error', 'Unauthorized Access');
+                                        this.emit('error', 'Unauthorized Access', true);
                                     }
                                 }
                                 else {
-                                    this.emitter.emit('error', JSON.stringify(err));
+                                    this.emit('error', JSON.stringify(err), true);
                                 }
                             } else {
                                 this.listener = null;
@@ -126,9 +144,11 @@ class AmcrestAD110 {
                         .finally(_ => {
                             if (this.running) {
                                 if (this.resetting) {
+                                    this.emit('debug', 'Resetting Connection', true);
                                     this.resetting = false;
                                     this.attach();
                                 } else {
+                                    this.emit('error', `Connection Lost, Trying to connect again in ${this.retryDelay}ms`, true);
                                     if (this.onretry) clearTimeout(this.onretry);
                                     this.onretry = setTimeout(_ => {
                                         if (this.running) {
@@ -137,6 +157,7 @@ class AmcrestAD110 {
                                     }, this.retryDelay);
                                 }
                             } else {
+                                this.emit('debug', 'Connection Ended', true);
                                 this.resetting = false;
                             }
                         });
@@ -149,7 +170,7 @@ class AmcrestAD110 {
                         }, this.resetTime);
                     }
                 })
-                .catch(err => this.emitter.emit('error', err));
+                .catch(err => this.emit('error', JSON.stringify(err), true));
         }
 
 
@@ -223,11 +244,11 @@ class AmcrestAD110 {
     }
 
 
-    listen(listener) {
+    listen(listener) { // Listen for all Events
         this.emitter.addListener('*', listener);
     }
 
-    unlisten() {
+    unlisten() { //Unsubscribe from all
         this.emitter.removeAllListeners();
     }
 
@@ -260,11 +281,12 @@ class AmcrestAD110 {
         this.emitter.addListener('CallNotAnswered', listener);
     }
 
-    onRawData(listener) {
+
+    onRawData(listener) { //Listen for Raw Data
         this.emitter.addListener('raw', listener);
     }
 
-    onError(listener) {
+    onError(listener) { // Listen for Errors
         this.emitter.addListener('error', listener);
     }
 }

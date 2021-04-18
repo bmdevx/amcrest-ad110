@@ -178,7 +178,7 @@ class AmcrestAD110 {
             new Promise((res, rej) => {
                 got(path, options)
                     .catch(errRes => {
-                        if (errRes.response.statusCode == 401) {
+                        if (errRes.response && errRes.response.statusCode == 401) {
                             var challenges = Auth.parseHeaders(errRes.response.headers['www-authenticate']);
                             var auth = Auth.create(challenges);
                             auth.credentials('admin', this.password);

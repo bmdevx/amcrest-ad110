@@ -6,9 +6,9 @@ const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
 const SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi';
 const TIME_PATH = '/cgi-bin/global.cgi?action=getCurrentTime';
 
-const DEFAULT_RETRY_DELAY = 1000;
+const DEFAULT_RETRY_DELAY = 10 * 1000;
 const DEFAULT_USE_RAW_CODES = false;
-const DEFAULT_RESET_TIME = 10 * 60;
+const DEFAULT_RESET_TIME = 10 * 60 * 1000;
 
 const DEBUG = false;
 
@@ -22,7 +22,7 @@ class AmcrestAD110 {
 
         this.rawCodes = config.rawCodes || DEFAULT_USE_RAW_CODES;
         this.retryDelay = config.retryDelay || DEFAULT_RETRY_DELAY;
-        this.resetTime = (config.resetTime || DEFAULT_RESET_TIME) * 1000;
+        this.resetTime = (config.resetTime || DEFAULT_RESET_TIME);
 
         this.debug = (config.debug || DEBUG);
 
@@ -76,12 +76,31 @@ class AmcrestAD110 {
             }
 
             this.emit(event.code, event);
-            //this.emitter.emit(event.code, event);
-            //this.emitter.emit('*', event);
         };
 
         this.attach = () => {
             const url = `http://${this.ipAddr}${ATTACH_PATH}`;
+
+            const reattach = () => {
+                if (this.running) {
+                    if (this.resetting) {
+                        this.emit('debug', 'Resetting Connection', true);
+                        this.resetting = false;
+                        this.attach();
+                    } else {
+                        this.emit('error', `Connection Lost, Trying to connect again in ${this.retryDelay}ms`, true);
+                        if (this.onretry) clearTimeout(this.onretry);
+                        this.onretry = setTimeout(_ => {
+                            if (this.running) {
+                                this.attach();
+                            }
+                        }, this.retryDelay);
+                    }
+                } else {
+                    this.emit('debug', 'Connection Ended', true);
+                    this.resetting = false;
+                }
+            };
 
             this.getDigestOptions(url)
                 .then(options => {
@@ -134,32 +153,13 @@ class AmcrestAD110 {
                                         this.emit('error', 'Unauthorized Access', true);
                                     }
                                 }
-                                else {
-                                    this.emit('error', JSON.stringify(err), true);
-                                }
+                                else this.emit('error', JSON.stringify(err), true);
                             } else {
                                 this.listener = null;
                             }
                         })
                         .finally(_ => {
-                            if (this.running) {
-                                if (this.resetting) {
-                                    this.emit('debug', 'Resetting Connection', true);
-                                    this.resetting = false;
-                                    this.attach();
-                                } else {
-                                    this.emit('error', `Connection Lost, Trying to connect again in ${this.retryDelay}ms`, true);
-                                    if (this.onretry) clearTimeout(this.onretry);
-                                    this.onretry = setTimeout(_ => {
-                                        if (this.running) {
-                                            this.attach();
-                                        }
-                                    }, this.retryDelay);
-                                }
-                            } else {
-                                this.emit('debug', 'Connection Ended', true);
-                                this.resetting = false;
-                            }
+                            reattach()
                         });
 
                     if (this.resetTime > 0) {
@@ -170,7 +170,11 @@ class AmcrestAD110 {
                         }, this.resetTime);
                     }
                 })
-                .catch(err => this.emit('error', JSON.stringify(err), true));
+                .catch(err => {
+                    this.emit('error', JSON.stringify(err), true);
+
+                    reattach();
+                });
         }
 
 

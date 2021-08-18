@@ -151,9 +151,11 @@ class AmcrestAD110 {
                                 if (err.response && err.response.statusCode) {
                                     if (err.response.statusCode == 401) {
                                         this.emit('error', 'Unauthorized Access', true);
+                                    } else {
+                                        this.emit('error', { 'errorType': 'invalid_response', 'response': err.response }, true);
                                     }
                                 }
-                                else this.emit('error', JSON.stringify(err), true);
+                                else this.emit('error', { 'errorType': 'unknown', 'err': err }, true);
                             } else {
                                 this.listener = null;
                             }
@@ -171,8 +173,7 @@ class AmcrestAD110 {
                     }
                 })
                 .catch(err => {
-                    this.emit('error', JSON.stringify(err), true);
-
+                    this.emit('error', { 'errorType': 'unknown', 'error': err }, true);
                     reattach();
                 });
         }
@@ -182,20 +183,25 @@ class AmcrestAD110 {
             new Promise((res, rej) => {
                 got(path, options)
                     .catch(errRes => {
-                        if (errRes.response && errRes.response.statusCode == 401) {
-                            var challenges = Auth.parseHeaders(errRes.response.headers['www-authenticate']);
-                            var auth = Auth.create(challenges);
-                            auth.credentials('admin', this.password);
+                        if (errRes.response) {
+                            if (errRes.response.statusCode == 401) {
+                                var challenges = Auth.parseHeaders(errRes.response.headers['www-authenticate']);
+                                var auth = Auth.create(challenges);
+                                auth.credentials('admin', this.password);
 
-                            if (options.headers) {
-                                options.headers['Authorization'] = auth.authorization("GET", path)
-                            } else {
-                                options.headers = {
-                                    'Authorization': auth.authorization("GET", path)
+                                if (options.headers) {
+                                    options.headers['Authorization'] = auth.authorization("GET", path)
+                                } else {
+                                    options.headers = {
+                                        'Authorization': auth.authorization("GET", path)
+                                    }
                                 }
-                            }
 
-                            res(options);
+                                res(options);
+                            } else {
+                                this.emit('error', { 'errorType': 'invalid_response', 'response': errRes.response }, true);
+                                rej('Unexpected Error');
+                            }
                         } else {
                             rej('Status Code Not 401');
                         }

@@ -1,5 +1,5 @@
 const events = require('events');
-const got = require('got/dist/source');
+const got = require('got');
 const Auth = require('http-auth-client')
 
 const ATTACH_PATH = '/cgi-bin/eventManager.cgi?action=attach&codes=[All]';
@@ -122,7 +122,11 @@ class AmcrestAD110 {
                                             al = l;
                                             midCode = true;
                                         } else {
-                                            this.process(this.parse(l));
+                                            try {
+                                                this.process(this.parse(l));
+                                            } catch (err) {
+                                                this.emit('error', err.message, true);
+                                            }
                                         }
                                     } else if (midCode) {
                                         al += l;
